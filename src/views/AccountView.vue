@@ -1,0 +1,121 @@
+<template>
+  <ion-page>
+    <ion-content :scroll-y="true" style="--background: #FAFAFA;">
+      <div style="padding-bottom:110px; background:#FAFAFA;">
+
+        <!-- Profile hero -->
+        <div style="padding:8px 16px 0;">
+          <div :style="profileCard">
+            <div :style="profileBg" />
+            <div style="position:relative; margin-top:4px;">
+              <AppAvatar :initial="store.user.name[0]" :size="72" :palette="0" />
+              <div :style="verifyBadge">
+                <AppIcon name="check" :size="11" color="#fff" :stroke-width="3" />
+              </div>
+            </div>
+            <div style="text-align:center; position:relative;">
+              <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em;">{{ store.user.name }}</div>
+              <div style="font-size:13px; color:#6B7280; margin-top:2px;">{{ store.user.email }}</div>
+            </div>
+            <button :style="editBtn">Edit profile</button>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div style="padding:12px 16px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <StatCard tint="#F3E8FF" label="Total contributed" :value="`$${store.user.totalContributed.toFixed(2)}`" sub="↑ $45 this month" />
+          <StatCard tint="#D8F3DC" label="Bills paid" :value="String(store.user.billsPaid)" :sub="`${store.user.activeBills} active`" />
+        </div>
+
+        <!-- Preferences section -->
+        <div style="padding:20px 16px 0;">
+          <div style="font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.06em; text-transform:uppercase; padding:0 4px 8px;">Preferences</div>
+          <div style="background:#FFFFFF; border-radius:16px; border:1px solid #F3F4F6; overflow:hidden;">
+            <SettingsRow icon="bell" label="Notifications">
+              <AppToggle v-model="notifications" />
+            </SettingsRow>
+            <SettingsRow icon="shield" label="Biometric login">
+              <AppToggle v-model="biometrics" />
+            </SettingsRow>
+            <SettingsRow icon="globe" label="Language">
+              <span style="display:flex; align-items:center; gap:4px; color:#9CA3AF; font-size:13px;">
+                English <AppIcon name="chevron-right" :size="14" color="#9CA3AF" :stroke-width="2" />
+              </span>
+            </SettingsRow>
+            <SettingsRow icon="credit-card" label="Payment methods" :no-border="true">
+              <span style="display:flex; align-items:center; gap:4px; color:#9CA3AF; font-size:13px;">
+                2 cards <AppIcon name="chevron-right" :size="14" color="#9CA3AF" :stroke-width="2" />
+              </span>
+            </SettingsRow>
+          </div>
+        </div>
+
+        <!-- Account section -->
+        <div style="padding:16px 16px 0;">
+          <div style="font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.06em; text-transform:uppercase; padding:0 4px 8px;">Account</div>
+          <div style="background:#FFFFFF; border-radius:16px; border:1px solid #F3F4F6; overflow:hidden;">
+            <SettingsRow icon="user" label="Personal information">
+              <AppIcon name="chevron-right" :size="16" color="#9CA3AF" :stroke-width="2" />
+            </SettingsRow>
+            <SettingsRow icon="receipt" label="Transaction history">
+              <AppIcon name="chevron-right" :size="16" color="#9CA3AF" :stroke-width="2" />
+            </SettingsRow>
+            <SettingsRow icon="log-out" label="Logout" label-color="#DC2626" icon-color="#DC2626" :no-border="true">
+              <AppIcon name="chevron-right" :size="16" color="#FCA5A5" :stroke-width="2" />
+            </SettingsRow>
+          </div>
+        </div>
+
+        <div style="text-align:center; padding:24px 16px 0; font-size:11px; color:#9CA3AF;">Instant · v1.0.0</div>
+      </div>
+    </ion-content>
+  </ion-page>
+</template>
+
+<script setup lang="ts">
+import { ref, defineComponent, h } from 'vue'
+import { IonPage, IonContent } from '@ionic/vue'
+import { useBillStore } from '@/stores/bills'
+import AppIcon from '@/components/AppIcon.vue'
+import AppAvatar from '@/components/AppAvatar.vue'
+import AppToggle from '@/components/AppToggle.vue'
+
+const store = useBillStore()
+const notifications = ref(true)
+const biometrics = ref(true)
+
+// Inline sub-components
+const StatCard = defineComponent({
+  props: { tint: String, label: String, value: String, sub: String },
+  setup(props) {
+    return () => h('div', {
+      style: `background:${props.tint}; border-radius:18px; padding:14px 16px 16px; display:flex; flex-direction:column; gap:4px;`
+    }, [
+      h('div', { style: 'font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.02em; text-transform:uppercase;' }, props.label),
+      h('div', { style: 'font-size:22px; font-weight:700; letter-spacing:-0.02em; color:#1A1A1A;' }, props.value),
+      h('div', { style: 'font-size:11px; color:#6B7280; font-weight:500; margin-top:2px;' }, props.sub),
+    ])
+  },
+})
+
+const SettingsRow = defineComponent({
+  props: { icon: String, label: String, noBorder: Boolean, labelColor: String, iconColor: String },
+  setup(props, { slots }) {
+    return () => h('div', {
+      style: `padding:14px 16px; display:flex; align-items:center; gap:12px; border-bottom:${props.noBorder ? 'none' : '1px solid #F3F4F6'};`
+    }, [
+      h('div', { style: 'width:32px; height:32px; border-radius:10px; background:#F3F4F6; display:flex; align-items:center; justify-content:center;' }, [
+        h(AppIcon, { name: props.icon!, size: 16, color: props.iconColor ?? '#6B7280', strokeWidth: 2 })
+      ]),
+      h('div', { style: `flex:1; font-size:14px; font-weight:500; color:${props.labelColor ?? '#1A1A1A'}; letter-spacing:-0.01em;` }, props.label),
+      slots.default?.(),
+    ])
+  },
+})
+
+// Styles
+const profileCard = { background: '#FFFFFF', borderRadius: '24px', padding: '24px 20px 22px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', border: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden' }
+const profileBg = { position: 'absolute', top: '-40px', left: '-40px', right: '-40px', height: '110px', background: 'linear-gradient(180deg, #E8F5EA 0%, transparent 100%)' }
+const verifyBadge = { position: 'absolute', bottom: '-2px', right: '-2px', width: '22px', height: '22px', borderRadius: '50%', background: '#2D6A4F', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff' }
+const editBtn = { padding: '8px 16px', borderRadius: '9999px', marginTop: '4px', background: '#F3F4F6', border: 'none', color: '#1A1A1A', fontFamily: 'inherit', fontSize: '12px', fontWeight: '600', cursor: 'pointer', position: 'relative' }
+</script>

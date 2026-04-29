@@ -1,0 +1,67 @@
+* { box-sizing: border-box; }
+
+:root {
+  --color-bg: #FAFAFA;
+  --color-surface: #FFFFFF;
+  --color-text: #1A1A1A;
+  --color-text-sec: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-border: #E5E7EB;
+  --color-divider: #F3F4F6;
+  --color-green: #2D6A4F;
+  --color-green-tint: #D8F3DC;
+  --color-progress: #22C55E;
+  --color-dark: #1C1C1E;
+  --color-dark-alt: #2C2C2E;
+  --color-success-bg: #D1FAE5;
+  --color-success-text: #166534;
+  --color-pending-bg: #FEF3C7;
+  --color-pending-text: #D97706;
+  --color-failed-bg: #FEE2E2;
+  --color-failed-text: #DC2626;
+  --shadow-soft: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.05);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+ion-content {
+  --background: var(--color-bg);
+}
+
+ion-tab-bar {
+  --background: #1C1C1E;
+  border-top: none;
+  border-radius: 24px 24px 0 0;
+  height: 80px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+ion-tab-button {
+  --color: #6B7280;
+  --color-selected: #FFFFFF;
+  --background: transparent;
+  --background-focused: transparent;
+  letter-spacing: -0.01em;
+}
+
+ion-tab-button ion-label {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+}
+
+ion-tab-button.tab-selected ion-label {
+  font-weight: 600;
+}
+
+button {
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+/* Smooth page transitions */
+ion-router-outlet {
+  --animation-duration: 280ms;
+}

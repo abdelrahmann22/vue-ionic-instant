@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Bill, Receipt, User } from '@/types'
+import { ref } from 'vue'
+import type { Bill, Receipt, User, UserPreferences } from '@/types'
 import { billService } from '@/services/billService'
 
 export const useBillStore = defineStore('bills', () => {
@@ -9,13 +9,19 @@ export const useBillStore = defineStore('bills', () => {
   const receipt = ref<Receipt | null>(null)
   const loading = ref(false)
 
-  const user: User = {
+  const user = ref<User>({
     name: 'Alex Johnson',
     email: 'alex@example.com',
     totalContributed: 245.00,
     billsPaid: 12,
     activeBills: 2,
-  }
+  })
+
+  const preferences = ref<UserPreferences>({
+    notifications: true,
+    biometrics: true,
+    language: 'English',
+  })
 
   async function loadBills() {
     loading.value = true
@@ -48,7 +54,7 @@ export const useBillStore = defineStore('bills', () => {
       amount,
       title: activeBill.value.title,
       merchant: activeBill.value.merchant,
-      date: 'Apr 28, 2026 · 9:41 AM',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       txn,
     }
     receipt.value = r
@@ -59,5 +65,27 @@ export const useBillStore = defineStore('bills', () => {
     receipt.value = null
   }
 
-  return { bills, activeBill, receipt, loading, user, loadBills, setActiveBill, clearActiveBill, scanQR, pay, clearReceipt }
+  async function updateProfile(name: string, email: string) {
+    const updated = await billService.updateProfile(name, email)
+    user.value = { ...user.value, name: updated.name, email: updated.email }
+  }
+
+  async function logout() {
+    await billService.logout()
+    bills.value = []
+    activeBill.value = null
+    receipt.value = null
+    user.value = { name: '', email: '', totalContributed: 0, billsPaid: 0, activeBills: 0 }
+  }
+
+  async function updatePreferences(prefs: Partial<UserPreferences>) {
+    const updated = await billService.updatePreferences(prefs)
+    preferences.value = updated
+  }
+
+  return {
+    bills, activeBill, receipt, loading, user, preferences,
+    loadBills, setActiveBill, clearActiveBill, scanQR, pay, clearReceipt,
+    updateProfile, logout, updatePreferences,
+  }
 })

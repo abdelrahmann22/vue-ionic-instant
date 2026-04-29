@@ -52,3 +52,9 @@ export interface PaymentResponse {
   checkoutUrl: string
   status: string
 }
+
+export interface UserPreferences {
+  notifications: boolean
+  biometrics: boolean
+  language: string
+}

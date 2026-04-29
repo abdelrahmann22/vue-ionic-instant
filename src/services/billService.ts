@@ -1,4 +1,4 @@
-import type { Bill, PaymentResponse } from '@/types'
+import type { Bill, PaymentResponse, User, UserPreferences } from '@/types'
 
 const MOCK_BILLS: Bill[] = [
   {
@@ -108,5 +108,34 @@ export const billService = {
 
   async confirmPayment(billId: string, paymentId: string): Promise<void> {
     await delay(300)
+  },
+
+  async getUser(): Promise<User> {
+    await delay(200)
+    return { name: 'Alex Johnson', email: 'alex@example.com', totalContributed: 245.00, billsPaid: 12, activeBills: 2 }
+  },
+
+  async updateProfile(name: string, email: string): Promise<User> {
+    await delay(400)
+    return { name, email, totalContributed: 245.00, billsPaid: 12, activeBills: 2 }
+  },
+
+  async logout(): Promise<void> {
+    await delay(200)
+  },
+
+  async getPreferences(): Promise<UserPreferences> {
+    await delay(150)
+    return { notifications: true, biometrics: true, language: 'English' }
+  },
+
+  async updatePreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    await delay(200)
+    return { notifications: true, biometrics: true, language: 'English', ...prefs }
+  },
+
+  async getAllTransactions(): Promise<Bill[]> {
+    await delay(300)
+    return [...MOCK_BILLS]
   },
 }

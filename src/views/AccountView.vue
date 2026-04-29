@@ -8,7 +8,7 @@
           <div :style="profileCard">
             <div :style="profileBg" />
             <div style="position:relative; margin-top:4px;">
-              <AppAvatar :initial="store.user.name[0]" :size="72" :palette="0" />
+              <AppAvatar :initial="store.user.name[0] || 'A'" :size="72" :palette="0" />
               <div :style="verifyBadge">
                 <AppIcon name="check" :size="11" color="#fff" :stroke-width="3" />
               </div>
@@ -17,7 +17,7 @@
               <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em;">{{ store.user.name }}</div>
               <div style="font-size:13px; color:#6B7280; margin-top:2px;">{{ store.user.email }}</div>
             </div>
-            <button :style="editBtn">Edit profile</button>
+            <button :style="editBtn" @click="editProfile">Edit profile</button>
           </div>
         </div>
 
@@ -27,22 +27,22 @@
           <StatCard tint="#D8F3DC" label="Bills paid" :value="String(store.user.billsPaid)" :sub="`${store.user.activeBills} active`" />
         </div>
 
-        <!-- Preferences section -->
+        <!-- Preferences -->
         <div style="padding:20px 16px 0;">
           <div style="font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.06em; text-transform:uppercase; padding:0 4px 8px;">Preferences</div>
           <div style="background:#FFFFFF; border-radius:16px; border:1px solid #F3F4F6; overflow:hidden;">
             <SettingsRow icon="bell" label="Notifications">
-              <AppToggle v-model="notifications" />
+              <AppToggle :model-value="store.preferences.notifications" @update:model-value="toggleNotifications" />
             </SettingsRow>
             <SettingsRow icon="shield" label="Biometric login">
-              <AppToggle v-model="biometrics" />
+              <AppToggle :model-value="store.preferences.biometrics" @update:model-value="toggleBiometrics" />
             </SettingsRow>
-            <SettingsRow icon="globe" label="Language">
+            <SettingsRow icon="globe" label="Language" clickable @row-click="changeLanguage">
               <span style="display:flex; align-items:center; gap:4px; color:#9CA3AF; font-size:13px;">
-                English <AppIcon name="chevron-right" :size="14" color="#9CA3AF" :stroke-width="2" />
+                {{ store.preferences.language }} <AppIcon name="chevron-right" :size="14" color="#9CA3AF" :stroke-width="2" />
               </span>
             </SettingsRow>
-            <SettingsRow icon="credit-card" label="Payment methods" :no-border="true">
+            <SettingsRow icon="credit-card" label="Payment methods" :no-border="true" clickable @row-click="paymentMethods">
               <span style="display:flex; align-items:center; gap:4px; color:#9CA3AF; font-size:13px;">
                 2 cards <AppIcon name="chevron-right" :size="14" color="#9CA3AF" :stroke-width="2" />
               </span>
@@ -50,17 +50,17 @@
           </div>
         </div>
 
-        <!-- Account section -->
+        <!-- Account -->
         <div style="padding:16px 16px 0;">
           <div style="font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.06em; text-transform:uppercase; padding:0 4px 8px;">Account</div>
           <div style="background:#FFFFFF; border-radius:16px; border:1px solid #F3F4F6; overflow:hidden;">
-            <SettingsRow icon="user" label="Personal information">
+            <SettingsRow icon="user" label="Personal information" clickable @row-click="editProfile">
               <AppIcon name="chevron-right" :size="16" color="#9CA3AF" :stroke-width="2" />
             </SettingsRow>
-            <SettingsRow icon="receipt" label="Transaction history">
+            <SettingsRow icon="receipt" label="Transaction history" clickable @row-click="viewHistory">
               <AppIcon name="chevron-right" :size="16" color="#9CA3AF" :stroke-width="2" />
             </SettingsRow>
-            <SettingsRow icon="log-out" label="Logout" label-color="#DC2626" icon-color="#DC2626" :no-border="true">
+            <SettingsRow icon="log-out" label="Logout" label-color="#DC2626" icon-color="#DC2626" :no-border="true" clickable @row-click="logout">
               <AppIcon name="chevron-right" :size="16" color="#FCA5A5" :stroke-width="2" />
             </SettingsRow>
           </div>
@@ -73,23 +73,113 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineComponent, h } from 'vue'
-import { IonPage, IonContent } from '@ionic/vue'
+import { defineComponent, h } from 'vue'
+import { useRouter } from 'vue-router'
+import { IonPage, IonContent, alertController, toastController } from '@ionic/vue'
 import { useBillStore } from '@/stores/bills'
 import AppIcon from '@/components/AppIcon.vue'
 import AppAvatar from '@/components/AppAvatar.vue'
 import AppToggle from '@/components/AppToggle.vue'
 
+const router = useRouter()
 const store = useBillStore()
-const notifications = ref(true)
-const biometrics = ref(true)
+
+async function toggleNotifications(val: boolean) {
+  await store.updatePreferences({ notifications: val })
+}
+
+async function toggleBiometrics(val: boolean) {
+  await store.updatePreferences({ biometrics: val })
+}
+
+async function editProfile() {
+  const alert = await alertController.create({
+    header: 'Edit Profile',
+    inputs: [
+      { name: 'name', type: 'text', value: store.user.name, placeholder: 'Full name' },
+      { name: 'email', type: 'email', value: store.user.email, placeholder: 'Email address' },
+    ],
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Save',
+        handler: async (data: { name: string; email: string }) => {
+          const name = data.name?.trim()
+          const email = data.email?.trim()
+          if (!name || !email) return false
+          await store.updateProfile(name, email)
+          const toast = await toastController.create({ message: 'Profile updated', duration: 2000, position: 'bottom', color: 'dark' })
+          await toast.present()
+          return true
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
+
+async function changeLanguage() {
+  const languages = ['English', 'Arabic', 'French', 'Spanish']
+  const alert = await alertController.create({
+    header: 'Language',
+    inputs: languages.map(lang => ({
+      type: 'radio' as const,
+      label: lang,
+      value: lang,
+      checked: store.preferences.language === lang,
+    })),
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Select',
+        handler: async (lang: string) => {
+          await store.updatePreferences({ language: lang })
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
+
+async function paymentMethods() {
+  const toast = await toastController.create({
+    message: 'Payment methods — coming soon!',
+    duration: 2000,
+    position: 'bottom',
+    color: 'dark',
+  })
+  await toast.present()
+}
+
+function viewHistory() {
+  router.push('/tabs/home')
+}
+
+async function logout() {
+  const alert = await alertController.create({
+    header: 'Log out',
+    message: 'Are you sure you want to log out?',
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Log out',
+        role: 'destructive',
+        handler: async () => {
+          await store.logout()
+          router.replace('/tabs/home')
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
 
 // Inline sub-components
 const StatCard = defineComponent({
   props: { tint: String, label: String, value: String, sub: String },
   setup(props) {
     return () => h('div', {
-      style: `background:${props.tint}; border-radius:18px; padding:14px 16px 16px; display:flex; flex-direction:column; gap:4px;`
+      style: `background:${props.tint}; border-radius:18px; padding:14px 16px 16px; display:flex; flex-direction:column; gap:4px;`,
     }, [
       h('div', { style: 'font-size:11px; font-weight:600; color:#6B7280; letter-spacing:0.02em; text-transform:uppercase;' }, props.label),
       h('div', { style: 'font-size:22px; font-weight:700; letter-spacing:-0.02em; color:#1A1A1A;' }, props.value),
@@ -99,13 +189,22 @@ const StatCard = defineComponent({
 })
 
 const SettingsRow = defineComponent({
-  props: { icon: String, label: String, noBorder: Boolean, labelColor: String, iconColor: String },
-  setup(props, { slots }) {
+  props: {
+    icon: String,
+    label: String,
+    noBorder: Boolean,
+    labelColor: String,
+    iconColor: String,
+    clickable: Boolean,
+  },
+  emits: ['row-click'],
+  setup(props, { slots, emit }) {
     return () => h('div', {
-      style: `padding:14px 16px; display:flex; align-items:center; gap:12px; border-bottom:${props.noBorder ? 'none' : '1px solid #F3F4F6'};`
+      style: `padding:14px 16px; display:flex; align-items:center; gap:12px; border-bottom:${props.noBorder ? 'none' : '1px solid #F3F4F6'}; ${props.clickable ? 'cursor:pointer;' : ''}`,
+      onClick: props.clickable ? () => emit('row-click') : undefined,
     }, [
       h('div', { style: 'width:32px; height:32px; border-radius:10px; background:#F3F4F6; display:flex; align-items:center; justify-content:center;' }, [
-        h(AppIcon, { name: props.icon!, size: 16, color: props.iconColor ?? '#6B7280', strokeWidth: 2 })
+        h(AppIcon, { name: props.icon!, size: 16, color: props.iconColor ?? '#6B7280', strokeWidth: 2 }),
       ]),
       h('div', { style: `flex:1; font-size:14px; font-weight:500; color:${props.labelColor ?? '#1A1A1A'}; letter-spacing:-0.01em;` }, props.label),
       slots.default?.(),

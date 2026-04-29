@@ -11,7 +11,7 @@
           <div style="text-align:center;">
             <div style="font-size:11px; color:#9CA3AF; font-weight:500; letter-spacing:0.04em; text-transform:uppercase;">Bill #{{ bill.code }}</div>
           </div>
-          <button :style="circleBtn">
+          <button :style="circleBtn" @click="switchToContributors">
             <AppIcon name="users" :size="16" color="#1A1A1A" :stroke-width="2" />
           </button>
         </div>
@@ -149,9 +149,13 @@ onMounted(async () => {
   }
 })
 
+function switchToContributors() {
+  activeTab.value = 'Contributors'
+}
+
 async function onPaid(amount: number) {
   showPayment.value = false
-  const receipt = await store.pay(amount)
+  await store.pay(amount)
   router.push('/receipt')
 }
 

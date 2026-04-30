@@ -2,22 +2,6 @@
   <ion-page>
     <ion-content :scroll-y="true" style="--background: #FAFAFA;">
       <div style="padding-bottom:100px; background:#FAFAFA;">
-        <style>
-          @keyframes checkPop {
-            0% { transform: scale(0); opacity: 0; }
-            60% { transform: scale(1.15); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          @keyframes ringRipple {
-            0% { transform: scale(0.8); opacity: 0.6; }
-            100% { transform: scale(1.6); opacity: 0; }
-          }
-          @keyframes fadeUp {
-            from { transform: translateY(8px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-        </style>
-
         <!-- Header -->
         <div style="padding:56px 16px 12px; display:flex; justify-content:space-between; align-items:center;">
           <button :style="circleBtn" @click="done">
@@ -106,14 +90,16 @@ const store = useBillStore()
 const receipt = computed(() => store.receipt)
 
 function done() {
+  const id = store.activeBill?.id
   store.clearReceipt()
   store.clearActiveBill()
   router.replace('/tabs/home')
 }
 
-function viewBill() {
-  if (store.activeBill) {
-    router.push(`/bill/${store.activeBill.id}`)
+async function viewBill() {
+  const billId = store.activeBill?.id
+  if (billId) {
+    router.push(`/bill/${billId}`)
   } else {
     router.replace('/tabs/home')
   }
@@ -152,3 +138,19 @@ const DetailRow = defineComponent({
 const circleBtn = { width: '40px', height: '40px', borderRadius: '50%', background: '#FFFFFF', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }
 const doneBtn = { width: '100%', height: '52px', borderRadius: '14px', background: '#1C1C1E', color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: '14px', fontWeight: '600', cursor: 'pointer', letterSpacing: '-0.01em' }
 </script>
+
+<style scoped>
+@keyframes checkPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes ringRipple {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes fadeUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+</style>

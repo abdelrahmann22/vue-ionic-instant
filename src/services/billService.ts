@@ -1,141 +1,88 @@
-import type { Bill, PaymentResponse, User, UserPreferences } from '@/types'
+import { api } from './api'
+import type { BillDetail, BillItem } from '@/types'
 
-const MOCK_BILLS: Bill[] = [
-  {
-    id: 'p1', title: 'Dinner Split', merchant: 'Acme Restaurant',
-    time: '2 min ago', date: 'Apr 28, 2026', amount: 45.00,
-    status: 'Completed', peopleCount: 3,
-    total: 200, contributed: 125, userShare: 75, code: 'A1F4',
-    items: [
-      { qty: 1, name: 'Ribeye Steak', price: 65 },
-      { qty: 1, name: 'Grilled Salmon', price: 55 },
-      { qty: 1, name: 'Shared Starters & Drinks', price: 60 },
-    ],
-    subtotal: 180, tax: 20,
-    contributors: [
-      { id: 'u1', name: 'You', amount: 75, paid: true, time: 'just now' },
-      { id: 'u2', name: 'Ali', amount: 50, paid: true, time: '5 min ago' },
-      { id: 'u3', name: 'Sara', amount: 75, paid: false, time: '' },
-    ],
-  },
-  {
-    id: 'p2', title: 'Lunch Group', merchant: 'Green Bowl',
-    time: '1 hour ago', date: 'Apr 28, 2026', amount: 28.50,
-    status: 'Completed', peopleCount: 4,
-    total: 114, contributed: 114, userShare: 28.50, code: 'B2C9',
-    items: [
-      { qty: 4, name: 'Buddha Bowl', price: 88 },
-      { qty: 2, name: 'Iced Matcha', price: 14 },
-      { qty: 1, name: 'Side Kimchi', price: 6 },
-    ],
-    subtotal: 108, tax: 6,
-    contributors: [
-      { id: 'u1', name: 'You', amount: 28.5, paid: true, time: '1h ago' },
-      { id: 'u2', name: 'Ali', amount: 28.5, paid: true, time: '1h ago' },
-      { id: 'u3', name: 'Sara', amount: 28.5, paid: true, time: '58m ago' },
-      { id: 'u4', name: 'Marco', amount: 28.5, paid: true, time: '45m ago' },
-    ],
-  },
-  {
-    id: 'p3', title: 'Movie Night', merchant: 'Vue Cinema',
-    time: 'Yesterday', date: 'Apr 27, 2026', amount: 12.00,
-    status: 'Failed', peopleCount: 5,
-    total: 60, contributed: 24, userShare: 12, code: 'C3D7',
-    items: [{ qty: 5, name: 'Premium Seat', price: 60 }],
-    subtotal: 60, tax: 0,
-    contributors: [
-      { id: 'u1', name: 'You', amount: 12, paid: false, time: '' },
-      { id: 'u2', name: 'Ali', amount: 12, paid: true, time: 'Yesterday' },
-      { id: 'u3', name: 'Sara', amount: 12, paid: true, time: 'Yesterday' },
-    ],
-  },
-  {
-    id: 'p4', title: 'Team Event', merchant: 'Roof Bar',
-    time: 'Yesterday', date: 'Apr 27, 2026', amount: 67.25,
-    status: 'Completed', peopleCount: 8,
-    total: 538, contributed: 538, userShare: 67.25, code: 'D4E2',
-    items: [
-      { qty: 1, name: 'Catering', price: 480 },
-      { qty: 8, name: 'Drinks', price: 48 },
-    ],
-    subtotal: 528, tax: 10,
-    contributors: [
-      { id: 'u1', name: 'You', amount: 67.25, paid: true, time: 'Yesterday' },
-    ],
-  },
-  {
-    id: 'p5', title: 'Brunch', merchant: 'Sunny Cafe',
-    time: '2 days ago', date: 'Apr 26, 2026', amount: 22.00,
-    status: 'Completed', peopleCount: 3,
-    total: 66, contributed: 66, userShare: 22, code: 'E5F1',
-    items: [
-      { qty: 3, name: 'Brunch plate', price: 60 },
-      { qty: 3, name: 'Coffee', price: 6 },
-    ],
-    subtotal: 60, tax: 6,
-    contributors: [
-      { id: 'u1', name: 'You', amount: 22, paid: true, time: '2d ago' },
-    ],
-  },
-]
+interface RawBill {
+  id: number
+  title: string
+  amount: string | number
+  fees: string | number
+  currency: string
+  items: string | BillItem[]
+  status: 'open' | 'paid' | 'completed' | 'expired'
+  paid_amount: string | number
+  remaining: string | number
+  created_at: string
+  expires_at: string
+  transferred?: boolean
+  transfer_id?: string | null
+}
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+function num(v: string | number | undefined | null): number {
+  if (v == null) return 0
+  return typeof v === 'string' ? parseFloat(v) : v
+}
+
+function parseItems(items: string | BillItem[]): BillItem[] {
+  if (Array.isArray(items)) return items
+  try {
+    return JSON.parse(items) as BillItem[]
+  } catch {
+    return []
+  }
+}
 
 export const billService = {
-  async getBills(): Promise<Bill[]> {
-    await delay(300)
-    return [...MOCK_BILLS]
-  },
-
-  async getBillById(id: string): Promise<Bill | null> {
-    await delay(200)
-    return MOCK_BILLS.find(b => b.id === id) ?? null
-  },
-
-  async getBillByQR(_token: string): Promise<Bill> {
-    await delay(1400)
-    return MOCK_BILLS[0]
-  },
-
-  async initiatePayment(billId: string, amount: number): Promise<PaymentResponse> {
-    await delay(800)
+  async getBillByToken(billId: number, token: string): Promise<BillDetail> {
+    const { data } = await api.get<RawBill>(`/api/bills/${billId}`, { params: { token } })
     return {
-      paymentId: String(Math.floor(Math.random() * 10000)),
-      checkoutUrl: '',
-      status: 'pending',
+      id: data.id,
+      title: data.title,
+      amount: num(data.amount),
+      fees: num(data.fees),
+      currency: data.currency,
+      items: parseItems(data.items),
+      status: data.status,
+      paidAmount: num(data.paid_amount),
+      remaining: num(data.remaining),
+      createdAt: data.created_at,
+      expiresAt: data.expires_at,
+      token,
     }
   },
+}
 
-  async confirmPayment(billId: string, paymentId: string): Promise<void> {
-    await delay(300)
-  },
+export function parseBillFromQR(text: string): { billId: number; token: string } | null {
+  // Accept full URLs like "https://host/bills/5?token=abc12345"
+  // or plain "5:abc12345" / "5/abc12345" formats for manual entry.
+  if (!text) return null
+  const trimmed = text.trim()
+  // Try URL with /bills/<id>?token=...
+  try {
+    const url = new URL(trimmed)
+    const m = url.pathname.match(/bills\/(\d+)/)
+    const token = url.searchParams.get('token')
+    if (m && token) return { billId: parseInt(m[1], 10), token }
+  } catch {
+    /* not a URL */
+  }
+  // Try "id:token" or "id/token"
+  const parts = trimmed.split(/[:\/\s]+/).filter(Boolean)
+  if (parts.length === 2 && /^\d+$/.test(parts[0])) {
+    return { billId: parseInt(parts[0], 10), token: parts[1] }
+  }
+  return null
+}
 
-  async getUser(): Promise<User> {
-    await delay(200)
-    return { name: 'Alex Johnson', email: 'alex@example.com', totalContributed: 245.00, billsPaid: 12, activeBills: 2 }
-  },
+export function currencySymbol(code: string): string {
+  const c = code?.toLowerCase() ?? 'usd'
+  if (c === 'gbp') return '£'
+  if (c === 'eur') return '€'
+  if (c === 'egp') return 'E£'
+  return '$'
+}
 
-  async updateProfile(name: string, email: string): Promise<User> {
-    await delay(400)
-    return { name, email, totalContributed: 245.00, billsPaid: 12, activeBills: 2 }
-  },
-
-  async logout(): Promise<void> {
-    await delay(200)
-  },
-
-  async getPreferences(): Promise<UserPreferences> {
-    await delay(150)
-    return { notifications: true, biometrics: true, language: 'English' }
-  },
-
-  async updatePreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
-    await delay(200)
-    return { notifications: true, biometrics: true, language: 'English', ...prefs }
-  },
-
-  async getAllTransactions(): Promise<Bill[]> {
-    await delay(300)
-    return [...MOCK_BILLS]
-  },
+export function mapBillStatus(status: BillDetail['status']): 'Completed' | 'Pending' | 'Expired' {
+  if (status === 'paid' || status === 'completed') return 'Completed'
+  if (status === 'expired') return 'Expired'
+  return 'Pending'
 }

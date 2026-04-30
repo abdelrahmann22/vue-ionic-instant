@@ -2,26 +2,11 @@
   <ion-page>
     <ion-content :scroll-y="false" style="--background: #0A0A0A;">
       <div style="height:100%; background:#0A0A0A; position:relative; color:#fff; overflow:hidden;">
-        <style>
-          @keyframes scanLine {
-            0% { transform: translateY(-90px); opacity: 0; }
-            10% { opacity: 1; }
-            50% { transform: translateY(90px); opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-90px); opacity: 0; }
-          }
-          @keyframes pulseDot {
-            0%, 100% { opacity: 0.5; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.4); }
-          }
-        </style>
-
-        <!-- Camera noise gradient -->
         <div style="position:absolute; inset:0; background:radial-gradient(ellipse at center, #1a1a1a 0%, #050505 70%);" />
 
         <!-- Top bar -->
         <div style="position:absolute; top:0; left:0; right:0; padding:56px 16px 12px; display:flex; justify-content:space-between; align-items:center; z-index:3;">
-          <button :style="glassBtn" @click="router.back()">
+          <button :style="glassBtn" @click="router.replace('/tabs/home')">
             <AppIcon name="x" :size="18" color="#fff" :stroke-width="2" />
           </button>
           <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em;">Scan a QR code</div>
@@ -58,13 +43,13 @@
             </button>
           </div>
 
-          <button :style="captureBtnStyle" :disabled="scanning" @click="handleScan">
-            <AppIcon v-if="scanning" name="check" :size="26" color="#fff" :stroke-width="2.5" />
+          <button :style="captureBtnStyle" :disabled="loading" @click="enterManually">
+            <AppIcon v-if="loading" name="check" :size="26" color="#fff" :stroke-width="2.5" />
           </button>
 
           <div style="font-size:11px; color:rgba(255,255,255,0.55); display:flex; align-items:center; gap:6px;">
             <div :style="pulseDot" />
-            {{ scanning ? 'Bill detected — opening…' : 'Camera ready' }}
+            {{ loading ? 'Loading bill…' : 'Tap to enter bill code' }}
           </div>
         </div>
       </div>
@@ -77,62 +62,49 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { IonPage, IonContent, alertController, toastController } from '@ionic/vue'
 import { useBillStore } from '@/stores/bills'
+import { parseBillFromQR } from '@/services/billService'
 import AppIcon from '@/components/AppIcon.vue'
 
 const router = useRouter()
 const store = useBillStore()
-const scanning = ref(false)
+const loading = ref(false)
 const flashOn = ref(false)
-
-async function handleScan() {
-  if (scanning.value) return
-  scanning.value = true
-  try {
-    const bill = await store.scanQR('mock-qr-token')
-    store.setActiveBill(bill)
-    router.push(`/bill/${bill.id}`)
-  } finally {
-    scanning.value = false
-  }
-}
 
 async function fromPhotos() {
   const toast = await toastController.create({
     message: 'Photo library — coming soon!',
-    duration: 2000,
-    position: 'bottom',
-    color: 'dark',
+    duration: 2000, position: 'bottom', color: 'dark',
   })
   await toast.present()
 }
 
 async function enterManually() {
   const alert = await alertController.create({
-    header: 'Enter Bill Code',
-    message: 'Type the bill code shown by the merchant.',
+    header: 'Enter Bill',
+    message: 'Paste the bill URL or enter as "id:token".',
     inputs: [
       {
-        name: 'code',
+        name: 'value',
         type: 'text',
-        placeholder: 'e.g. A1F4',
-        attributes: { maxlength: 10, autocapitalize: 'characters' },
+        placeholder: 'e.g. 5:Aa1Bb2Cc',
+        attributes: { autocapitalize: 'off', autocorrect: 'off' },
       },
     ],
     buttons: [
       { text: 'Cancel', role: 'cancel' },
       {
-        text: 'Access Bill',
-        handler: async (data: { code: string }) => {
-          const code = data.code?.trim()
-          if (!code) return false
-          scanning.value = true
-          try {
-            const bill = await store.scanQR(code)
-            store.setActiveBill(bill)
-            router.push(`/bill/${bill.id}`)
-          } finally {
-            scanning.value = false
+        text: 'Open Bill',
+        handler: async (data: { value: string }) => {
+          const parsed = parseBillFromQR(data.value)
+          if (!parsed) {
+            const t = await toastController.create({
+              message: 'Invalid format. Try "5:Aa1Bb2Cc" or paste the QR URL.',
+              duration: 2500, position: 'bottom', color: 'danger',
+            })
+            await t.present()
+            return false
           }
+          await openBill(parsed.billId, parsed.token)
           return true
         },
       },
@@ -141,10 +113,39 @@ async function enterManually() {
   await alert.present()
 }
 
-// Styles
+async function openBill(billId: number, token: string) {
+  loading.value = true
+  try {
+    await store.loadBillByToken(billId, token)
+    router.push(`/bill/${billId}`)
+  } catch (e: any) {
+    const t = await toastController.create({
+      message: e?.response?.data?.message ?? 'Bill not found or expired',
+      duration: 2500, position: 'bottom', color: 'danger',
+    })
+    await t.present()
+  } finally {
+    loading.value = false
+  }
+}
+
 const glassBtn = { width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(10px)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }
 const flashBtnStyle = computed(() => ({ ...glassBtn, background: flashOn.value ? '#fff' : 'rgba(255,255,255,0.10)' }))
 const glassChip = { padding: '10px 18px', borderRadius: '9999px', background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(10px)', border: 'none', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }
-const captureBtnStyle = computed(() => ({ width: '64px', height: '64px', borderRadius: '50%', background: scanning.value ? '#2D6A4F' : '#fff', border: '4px solid rgba(255,255,255,0.25)', cursor: scanning.value ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 200ms' }))
+const captureBtnStyle = computed(() => ({ width: '64px', height: '64px', borderRadius: '50%', background: loading.value ? '#2D6A4F' : '#fff', border: '4px solid rgba(255,255,255,0.25)', cursor: loading.value ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 200ms' }))
 const pulseDot = { width: '6px', height: '6px', borderRadius: '50%', background: '#22C55E', animation: 'pulseDot 1.5s infinite', display: 'inline-block' }
 </script>
+
+<style scoped>
+@keyframes scanLine {
+  0% { transform: translateY(-90px); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translateY(90px); opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-90px); opacity: 0; }
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+</style>

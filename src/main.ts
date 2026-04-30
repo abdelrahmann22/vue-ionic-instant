@@ -4,6 +4,7 @@ import { IonicVue } from '@ionic/vue'
 
 import App from './App.vue'
 import router from './router'
+import { useAuthStore } from './stores/auth'
 
 import '@ionic/vue/css/core.css'
 import '@ionic/vue/css/normalize.css'
@@ -13,13 +14,16 @@ import './assets/global.css'
 
 const app = createApp(App)
 
-app.use(IonicVue, {
-  mode: 'ios',
-  animated: true,
-})
-app.use(createPinia())
+app.use(IonicVue, { mode: 'ios', animated: true })
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 
-router.isReady().then(() => {
+;(async () => {
+  // Hydrate auth state from persisted token before first render
+  const authStore = useAuthStore(pinia)
+  await authStore.init()
+
+  await router.isReady()
   app.mount('#app')
-})
+})()

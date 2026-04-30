@@ -1,21 +1,17 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import type { Bill, Receipt, User, UserPreferences } from '@/types'
+import { ref, computed } from 'vue'
+import type { BillDetail, PaymentHistoryItem, Receipt, UserPreferences } from '@/types'
 import { billService } from '@/services/billService'
+import { paymentService } from '@/services/paymentService'
 
 export const useBillStore = defineStore('bills', () => {
-  const bills = ref<Bill[]>([])
-  const activeBill = ref<Bill | null>(null)
+  const payments = ref<PaymentHistoryItem[]>([])
+  const activeBill = ref<BillDetail | null>(null)
+  const activeBillMerchant = ref<string>('')
   const receipt = ref<Receipt | null>(null)
   const loading = ref(false)
-
-  const user = ref<User>({
-    name: 'Alex Johnson',
-    email: 'alex@example.com',
-    totalContributed: 245.00,
-    billsPaid: 12,
-    activeBills: 2,
-  })
+  const error = ref<string | null>(null)
+  const lastInitiatedPaymentAmount = ref<number | null>(null)
 
   const preferences = ref<UserPreferences>({
     notifications: true,
@@ -23,39 +19,103 @@ export const useBillStore = defineStore('bills', () => {
     language: 'English',
   })
 
-  async function loadBills() {
+  const totalContributed = computed(() =>
+    payments.value
+      .filter((p) => p.rawStatus === 'succeeded')
+      .reduce((sum, p) => sum + p.amount, 0)
+  )
+
+  const billsPaidCount = computed(
+    () => payments.value.filter((p) => p.rawStatus === 'succeeded').length
+  )
+
+  const activeBillsCount = computed(
+    () => payments.value.filter((p) => p.rawStatus === 'pending').length
+  )
+
+  async function loadPayments() {
     loading.value = true
+    error.value = null
     try {
-      bills.value = await billService.getBills()
+      payments.value = await paymentService.getUserPayments()
+    } catch (e: any) {
+      error.value = e?.message ?? 'Failed to load payments'
     } finally {
       loading.value = false
     }
   }
 
-  function setActiveBill(bill: Bill) {
-    activeBill.value = bill
+  async function loadBillByToken(billId: number, token: string, merchantName = '') {
+    loading.value = true
+    error.value = null
+    try {
+      const bill = await billService.getBillByToken(billId, token)
+      activeBill.value = bill
+      activeBillMerchant.value = merchantName || lookupMerchant(billId) || ''
+      return bill
+    } catch (e: any) {
+      error.value = e?.response?.data?.message ?? e?.message ?? 'Failed to load bill'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function lookupMerchant(billId: number): string {
+    const match = payments.value.find((p) => p.billId === billId)
+    return match?.merchantName ?? ''
   }
 
   function clearActiveBill() {
     activeBill.value = null
+    activeBillMerchant.value = ''
   }
 
-  async function scanQR(token: string): Promise<Bill> {
-    const bill = await billService.getBillByQR(token)
-    activeBill.value = bill
-    return bill
-  }
-
-  async function pay(amount: number): Promise<Receipt> {
+  async function initiatePayment(amount: number): Promise<string> {
     if (!activeBill.value) throw new Error('No active bill')
-    await billService.initiatePayment(activeBill.value.id, amount)
-    const txn = 'INST-' + Math.random().toString(36).slice(2, 8).toUpperCase()
+    const { checkoutUrl } = await paymentService.initiate(
+      activeBill.value.id,
+      activeBill.value.token,
+      amount
+    )
+    lastInitiatedPaymentAmount.value = amount
+    return checkoutUrl
+  }
+
+  async function pollForPaymentSuccess(opts: { intervalMs?: number; maxAttempts?: number } = {}): Promise<PaymentHistoryItem | null> {
+    const intervalMs = opts.intervalMs ?? 2500
+    const maxAttempts = opts.maxAttempts ?? 80 // ~3.3 minutes
+    const billId = activeBill.value?.id
+    if (!billId) return null
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, intervalMs))
+      try {
+        const list = await paymentService.getUserPayments()
+        payments.value = list
+        const succeeded = list.find(
+          (p) => p.billId === billId && p.rawStatus === 'succeeded'
+        )
+        if (succeeded) return succeeded
+      } catch {
+        // ignore transient errors and keep polling
+      }
+    }
+    return null
+  }
+
+  function buildReceipt(item: PaymentHistoryItem): Receipt {
     const r: Receipt = {
-      amount,
-      title: activeBill.value.title,
-      merchant: activeBill.value.merchant,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      txn,
+      amount: item.amount,
+      title: item.billTitle,
+      merchant: item.merchantName,
+      date: item.paidAt
+        ? new Date(item.paidAt).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          })
+        : new Date().toLocaleString(),
+      txn: 'INST-' + String(item.paymentId).padStart(6, '0'),
     }
     receipt.value = r
     return r
@@ -65,27 +125,24 @@ export const useBillStore = defineStore('bills', () => {
     receipt.value = null
   }
 
-  async function updateProfile(name: string, email: string) {
-    const updated = await billService.updateProfile(name, email)
-    user.value = { ...user.value, name: updated.name, email: updated.email }
-  }
-
-  async function logout() {
-    await billService.logout()
-    bills.value = []
+  function reset() {
+    payments.value = []
     activeBill.value = null
+    activeBillMerchant.value = ''
     receipt.value = null
-    user.value = { name: '', email: '', totalContributed: 0, billsPaid: 0, activeBills: 0 }
+    error.value = null
   }
 
   async function updatePreferences(prefs: Partial<UserPreferences>) {
-    const updated = await billService.updatePreferences(prefs)
-    preferences.value = updated
+    preferences.value = { ...preferences.value, ...prefs }
   }
 
   return {
-    bills, activeBill, receipt, loading, user, preferences,
-    loadBills, setActiveBill, clearActiveBill, scanQR, pay, clearReceipt,
-    updateProfile, logout, updatePreferences,
+    payments, activeBill, activeBillMerchant, receipt, loading, error,
+    preferences, lastInitiatedPaymentAmount,
+    totalContributed, billsPaidCount, activeBillsCount,
+    loadPayments, loadBillByToken, clearActiveBill,
+    initiatePayment, pollForPaymentSuccess, buildReceipt, clearReceipt,
+    updatePreferences, reset,
   }
 })

@@ -1,42 +1,49 @@
 export interface BillItem {
-  qty: number
-  name: string
+  title: string
+  quantity: number
   price: number
 }
 
-export interface Contributor {
-  id: string
-  name: string
+// Frontend-friendly status. Mapped from backend (open|paid|completed|expired for bills,
+// pending|succeeded|failed|cancelled for payments).
+export type StatusLabel = 'Completed' | 'Pending' | 'Failed' | 'Expired'
+
+// A row in the user's payment history (from GET /api/payments/user)
+export interface PaymentHistoryItem {
+  paymentId: number
+  billId: number
   amount: number
-  paid: boolean
-  time: string
+  status: StatusLabel
+  rawStatus: 'pending' | 'succeeded' | 'failed' | 'cancelled'
+  paidAt: string | null
+  billTitle: string
+  currency: string
+  billToken: string
+  merchantName: string
+  contributorsCount: number
 }
 
-export interface Bill {
-  id: string
+// Detailed bill from GET /api/bills/:id?token=
+export interface BillDetail {
+  id: number
   title: string
-  merchant: string
-  time: string
-  date: string
   amount: number
-  status: 'Completed' | 'Pending' | 'Failed' | 'Expired'
-  peopleCount: number
-  total: number
-  contributed: number
-  userShare: number
-  code: string
+  fees: number
+  currency: string
   items: BillItem[]
-  subtotal: number
-  tax: number
-  contributors: Contributor[]
+  status: 'open' | 'paid' | 'completed' | 'expired'
+  paidAmount: number
+  remaining: number
+  createdAt: string
+  expiresAt: string
+  token: string
+  merchantName?: string
 }
 
-export interface User {
-  name: string
+export interface AuthUser {
+  id: number
+  username: string | null
   email: string
-  totalContributed: number
-  billsPaid: number
-  activeBills: number
 }
 
 export interface Receipt {
@@ -45,12 +52,6 @@ export interface Receipt {
   merchant: string
   date: string
   txn: string
-}
-
-export interface PaymentResponse {
-  paymentId: string
-  checkoutUrl: string
-  status: string
 }
 
 export interface UserPreferences {

@@ -60,7 +60,7 @@
   </ion-page>
 </template>
 
-<style scoped>
+<style>
 @keyframes spn { to { transform: rotate(360deg); } }
 </style>
 

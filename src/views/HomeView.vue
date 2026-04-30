@@ -25,13 +25,21 @@
 
             <div>
               <div style="font-size:12px; color:#6B7280; font-weight:500; margin-bottom:4px; letter-spacing:0.02em; text-transform:uppercase;">Total contributed</div>
-              <div style="font-size:40px; font-weight:700; letter-spacing:-0.03em; line-height:1; color:#1A1A1A;">
-                ${{ store.totalContributed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-              </div>
-              <div style="font-size:12px; color:#2D6A4F; font-weight:600; margin-top:8px; display:flex; align-items:center; gap:4px;">
-                <AppIcon name="arrow-up-right" :size="12" color="#2D6A4F" :stroke-width="2.5" />
-                {{ store.billsPaidCount }} bills paid
-              </div>
+              <template v-if="statsLoading">
+                <SkeletonBox :width="180" :height="40" radius="8" />
+                <div style="margin-top:10px;">
+                  <SkeletonBox :width="100" :height="14" radius="6" />
+                </div>
+              </template>
+              <template v-else>
+                <div style="font-size:40px; font-weight:700; letter-spacing:-0.03em; line-height:1; color:#1A1A1A;">
+                  ${{ store.totalContributed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                </div>
+                <div style="font-size:12px; color:#2D6A4F; font-weight:600; margin-top:8px; display:flex; align-items:center; gap:4px;">
+                  <AppIcon name="arrow-up-right" :size="12" color="#2D6A4F" :stroke-width="2.5" />
+                  {{ store.billsPaidCount }} bills paid
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -47,9 +55,19 @@
           <FilterChip v-for="f in filters" :key="f" :active="activeFilter === f" @click="activeFilter = f">{{ f }}</FilterChip>
         </div>
 
-        <!-- Loading state -->
-        <div v-if="store.loading && store.payments.length === 0" style="padding:32px 16px; text-align:center; color:#9CA3AF; font-size:14px;">
-          Loading…
+        <!-- Skeleton loading state -->
+        <div v-if="store.loading && store.payments.length === 0" style="padding:0 16px; display:flex; flex-direction:column; gap:8px;">
+          <div v-for="n in 4" :key="n" :style="skeletonRow">
+            <SkeletonBox :width="42" :height="42" radius="50%" />
+            <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+              <SkeletonBox :width="'55%'" :height="14" />
+              <SkeletonBox :width="'35%'" :height="11" />
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+              <SkeletonBox :width="56" :height="15" />
+              <SkeletonBox :width="64" :height="18" radius="9999" />
+            </div>
+          </div>
         </div>
 
         <!-- Payment list -->
@@ -105,6 +123,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import AppAvatar from '@/components/AppAvatar.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import FilterChip from '@/components/FilterChip.vue'
+import SkeletonBox from '@/components/SkeletonBox.vue'
 
 const router = useRouter()
 const store = useBillStore()
@@ -128,6 +147,8 @@ const greeting = computed(() => {
 const hasPendingPayments = computed(() =>
   store.payments.some((p) => p.rawStatus === 'pending')
 )
+
+const statsLoading = computed(() => store.loading && store.payments.length === 0)
 
 const filteredPayments = computed(() =>
   activeFilter.value === 'All'
@@ -202,4 +223,5 @@ const notifDot = { position: 'absolute', top: '9px', right: '11px', width: '8px'
 const payRow = { background: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: '100%', transition: 'transform 120ms' }
 const emptyState = { background: '#FFFFFF', borderRadius: '16px', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '8px' }
 const emptyCta = { marginTop: '8px', padding: '10px 18px', borderRadius: '10px', background: '#1C1C1E', color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }
+const skeletonRow = { background: '#FFFFFF', borderRadius: '16px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }
 </script>

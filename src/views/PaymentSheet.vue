@@ -73,6 +73,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { IonContent } from '@ionic/vue'
+import { Browser } from '@capacitor/browser'
+import { Capacitor } from '@capacitor/core'
 import type { BillDetail } from '@/types'
 import { useBillStore } from '@/stores/bills'
 import { currencySymbol } from '@/services/billService'
@@ -126,10 +128,29 @@ async function handlePay() {
   if (!canPay.value) return
   errorMsg.value = ''
   initiating.value = true
+
+  // On web, open a blank tab synchronously to capture the user gesture.
+  // We'll redirect it to Stripe once we have the checkout URL.
+  const isNative = Capacitor.isNativePlatform()
+  let popup: Window | null = null
+  if (!isNative) {
+    popup = window.open('', '_blank')
+  }
+
   try {
     const checkoutUrl = await store.initiatePayment(numericAmount.value)
+    if (isNative) {
+      await Browser.open({ url: checkoutUrl, presentationStyle: 'popover' })
+    } else if (popup && !popup.closed) {
+      popup.location.href = checkoutUrl
+    } else {
+      // Popup blocked — fall back to navigating the current tab
+      window.location.href = checkoutUrl
+      return
+    }
     emit('initiated', checkoutUrl, numericAmount.value)
   } catch (e) {
+    if (popup && !popup.closed) popup.close()
     errorMsg.value = extractErrorMessage(e)
   } finally {
     initiating.value = false
@@ -142,7 +163,7 @@ const payBtn = computed(() => ({ width: '100%', height: '56px', borderRadius: '1
 const spinner = { width: '16px', height: '16px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spn 700ms linear infinite' }
 </script>
 
-<style scoped>
+<style>
 @keyframes spn { to { transform: rotate(360deg); } }
 .key-btn { transition: transform 80ms, background 120ms; }
 .key-btn:active { transform: scale(0.94); background: #3a3a3c !important; }

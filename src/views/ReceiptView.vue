@@ -139,7 +139,7 @@ const circleBtn = { width: '40px', height: '40px', borderRadius: '50%', backgrou
 const doneBtn = { width: '100%', height: '52px', borderRadius: '14px', background: '#1C1C1E', color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: '14px', fontWeight: '600', cursor: 'pointer', letterSpacing: '-0.01em' }
 </script>
 
-<style scoped>
+<style>
 @keyframes checkPop {
   0% { transform: scale(0); opacity: 0; }
   60% { transform: scale(1.15); opacity: 1; }

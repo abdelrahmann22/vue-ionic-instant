@@ -136,7 +136,7 @@ const captureBtnStyle = computed(() => ({ width: '64px', height: '64px', borderR
 const pulseDot = { width: '6px', height: '6px', borderRadius: '50%', background: '#22C55E', animation: 'pulseDot 1.5s infinite', display: 'inline-block' }
 </script>
 
-<style scoped>
+<style>
 @keyframes scanLine {
   0% { transform: translateY(-90px); opacity: 0; }
   10% { opacity: 1; }

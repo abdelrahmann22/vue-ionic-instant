@@ -14,23 +14,18 @@
           {{ subText }}
         </p>
 
-        <!-- Action buttons -->
-        <div style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:320px;">
-          <button v-if="!opened" :style="primaryBtn" @click="openCheckout">
-            Open Stripe Checkout
-          </button>
-
-          <button v-if="opened && !done" :style="primaryBtn" @click="checkNow" :disabled="checking">
+        <div v-if="!done" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:320px;">
+          <button :style="primaryBtn" @click="checkNow" :disabled="checking">
             <template v-if="checking"><div :style="spinnerSm" /> Checking…</template>
             <template v-else>I paid — check status</template>
           </button>
 
-          <button v-if="opened && !done" :style="secondaryBtn" @click="cancel">
+          <button :style="secondaryBtn" @click="cancel">
             Cancel and go back
           </button>
         </div>
 
-        <div v-if="opened && !done" :style="hint">
+        <div v-if="!done" :style="hint">
           We'll auto-detect your payment within a few seconds after you complete it on Stripe's page.
         </div>
       </div>
@@ -51,44 +46,21 @@ const route = useRoute()
 const router = useRouter()
 const store = useBillStore()
 
-const checkoutUrl = String(route.query.url ?? '')
 const amountPaid = parseFloat(String(route.query.amount ?? '0'))
 
-const opened = ref(false)
 const done = ref(false)
 const checking = ref(false)
 let pollHandle: number | null = null
 
 const statusText = computed(() => {
   if (done.value) return 'Payment confirmed!'
-  if (opened.value) return 'Waiting for payment…'
-  return 'Ready to pay'
+  return 'Waiting for payment…'
 })
 
 const subText = computed(() => {
   if (done.value) return 'Redirecting to your receipt…'
-  if (opened.value) return 'Complete your payment on the Stripe page that just opened. We\'ll detect it automatically.'
-  return `You'll be sent to Stripe to pay $${amountPaid.toFixed(2)} securely. Tap the button below to open it.`
+  return `Complete your payment of $${amountPaid.toFixed(2)} on the Stripe page that just opened. We'll detect it automatically.`
 })
-
-async function openCheckout() {
-  if (!checkoutUrl) {
-    router.replace('/tabs/home')
-    return
-  }
-  opened.value = true
-  try {
-    if (Capacitor.isNativePlatform()) {
-      await Browser.open({ url: checkoutUrl, presentationStyle: 'popover' })
-    } else {
-      window.open(checkoutUrl, '_blank', 'noopener')
-    }
-  } catch {
-    window.location.href = checkoutUrl
-    return
-  }
-  startPolling()
-}
 
 function startPolling() {
   stopPolling()
@@ -106,10 +78,12 @@ function stopPolling() {
 async function checkStatus() {
   if (done.value || !store.activeBill) return
   try {
-    const succeeded = await store.pollForPaymentSuccess({ intervalMs: 0, maxAttempts: 1 })
-    if (succeeded) {
-      onSuccess()
-    }
+    await store.loadPayments()
+    const billId = store.activeBill.id
+    const succeeded = store.payments.find(
+      (p) => p.billId === billId && p.rawStatus === 'succeeded'
+    )
+    if (succeeded) onSuccess()
   } catch {
     /* ignore transient errors */
   }
@@ -142,7 +116,6 @@ async function checkNow() {
 async function onSuccess() {
   done.value = true
   stopPolling()
-  await store.loadPayments()
   const billId = store.activeBill?.id
   const succeeded = store.payments.find(
     (p) => p.billId === billId && p.rawStatus === 'succeeded'
@@ -163,14 +136,9 @@ async function cancel() {
 }
 
 onMounted(() => {
-  if (!checkoutUrl) {
-    router.replace('/tabs/home')
-    return
-  }
-  // Auto-open on native; web users tap the button (browsers block auto popups)
-  if (Capacitor.isNativePlatform()) {
-    openCheckout()
-  }
+  // Stripe was opened by PaymentSheet right after the user tapped "Pay".
+  // We just need to poll for webhook confirmation.
+  startPolling()
 })
 
 onBeforeUnmount(() => stopPolling())
@@ -184,10 +152,6 @@ const hint = { marginTop: '20px', fontSize: '12px', color: '#9CA3AF', textAlign:
 const spinnerSm = { width: '14px', height: '14px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spn 700ms linear infinite' }
 </script>
 
-<style scoped>
+<style>
 @keyframes spn { to { transform: rotate(360deg); } }
-@keyframes fadeUp {
-  from { transform: translateY(8px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
 </style>

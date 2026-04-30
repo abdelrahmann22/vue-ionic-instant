@@ -84,9 +84,51 @@
         </div>
       </div>
 
-      <!-- Loading -->
-      <div v-else-if="store.loading" style="height:100%; display:flex; align-items:center; justify-content:center;">
-        <div style="font-size:14px; color:#9CA3AF;">Loading bill…</div>
+      <!-- Skeleton loading -->
+      <div v-else-if="store.loading" style="min-height:100%; padding-bottom:160px; background:#FAFAFA;">
+        <!-- Header skeleton -->
+        <div style="padding:56px 16px 12px; display:flex; justify-content:space-between; align-items:center;">
+          <SkeletonBox :width="40" :height="40" radius="50%" />
+          <SkeletonBox :width="80" :height="11" />
+          <SkeletonBox :width="40" :height="40" radius="50%" />
+        </div>
+
+        <!-- Hero card skeleton -->
+        <div style="padding:8px 16px 0;">
+          <div :style="heroCard">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+              <SkeletonBox :width="36" :height="36" radius="12" />
+              <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                <SkeletonBox :width="'60%'" :height="16" />
+                <SkeletonBox :width="'40%'" :height="12" />
+              </div>
+              <SkeletonBox :width="64" :height="22" radius="9999" />
+            </div>
+            <div style="border-top:1px solid #F3F4F6; padding-top:18px;">
+              <SkeletonBox :width="100" :height="11" />
+              <div style="margin-top:10px;">
+                <SkeletonBox :width="'50%'" :height="36" />
+              </div>
+              <div style="margin-top:14px;">
+                <SkeletonBox :width="'100%'" :height="8" radius="999" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items card skeleton -->
+        <div style="padding:14px 16px 0;">
+          <div style="background:#FFFFFF; border-radius:16px; padding:18px; border:1px solid #F3F4F6; display:flex; flex-direction:column; gap:14px;">
+            <SkeletonBox :width="60" :height="11" />
+            <div v-for="n in 3" :key="n" style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; gap:10px; align-items:center; flex:1;">
+                <SkeletonBox :width="32" :height="20" radius="6" />
+                <SkeletonBox :width="'50%'" :height="14" />
+              </div>
+              <SkeletonBox :width="50" :height="14" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Error -->
@@ -127,6 +169,7 @@ import { currencySymbol, mapBillStatus } from '@/services/billService'
 import AppIcon from '@/components/AppIcon.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import AppProgressBar from '@/components/AppProgressBar.vue'
+import SkeletonBox from '@/components/SkeletonBox.vue'
 import PaymentSheet from './PaymentSheet.vue'
 
 const route = useRoute()

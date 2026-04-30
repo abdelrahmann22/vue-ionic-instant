@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService } from '@/services/authService'
-import { getToken } from '@/services/api'
+import { getToken, getStoredUser, clearToken, clearStoredUser } from '@/services/api'
 import type { AuthUser } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,9 +14,15 @@ export const useAuthStore = defineStore('auth', () => {
     if (ready.value) return
     const token = await getToken()
     if (token) {
-      // We have a token but no user details — keep user null and let routes that need
-      // user info refetch. For MVP we just mark authenticated.
-      user.value = user.value ?? { id: 0, username: null, email: '' }
+      const stored = await getStoredUser()
+      if (stored) {
+        user.value = stored
+      } else {
+        // Stale token from a session before user persistence existed (or storage was cleared).
+        // Force a clean state so the user re-logs in instead of seeing "Guest".
+        await clearToken()
+        await clearStoredUser()
+      }
     }
     ready.value = true
   }

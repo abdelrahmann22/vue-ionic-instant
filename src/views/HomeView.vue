@@ -36,22 +36,6 @@
           </div>
         </div>
 
-        <!-- Quick actions -->
-        <div style="padding:20px 16px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <button :style="scanBtn" @click="router.push('/tabs/scan')">
-            <div :style="scanIcon">
-              <AppIcon name="scan-line" :size="16" color="#fff" :stroke-width="2" />
-            </div>
-            Scan a bill
-          </button>
-          <button :style="splitBtn" @click="showComingSoon('Split with friends')">
-            <div :style="splitIcon">
-              <AppIcon name="users" :size="16" color="#2D6A4F" :stroke-width="2" />
-            </div>
-            Split with…
-          </button>
-        </div>
-
         <!-- Recent activity header -->
         <div style="padding:24px 16px 12px; display:flex; justify-content:space-between; align-items:center;">
           <h2 style="font-size:16px; font-weight:600; margin:0; letter-spacing:-0.01em;">Recent activity</h2>
@@ -200,14 +184,6 @@ async function showNotifications() {
   await alert.present()
 }
 
-async function showComingSoon(feature: string) {
-  const toast = await toastController.create({
-    message: `${feature} — coming soon!`,
-    duration: 2000, position: 'bottom', color: 'dark',
-  })
-  await toast.present()
-}
-
 async function onRefresh(event: any) {
   await store.loadPayments()
   event.target.complete()
@@ -223,10 +199,6 @@ const ring1 = { position: 'absolute', right: '-60px', top: '-60px', width: '180p
 const ring2 = { position: 'absolute', right: '-30px', top: '-30px', width: '120px', height: '120px', borderRadius: '50%', border: '1px solid rgba(45,106,79,0.10)' }
 const notifBtn = { width: '40px', height: '40px', borderRadius: '50%', background: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', cursor: 'pointer', position: 'relative' }
 const notifDot = { position: 'absolute', top: '9px', right: '11px', width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444', border: '1.5px solid #fff' }
-const scanBtn = { background: '#1C1C1E', color: '#fff', border: 'none', borderRadius: '16px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer', letterSpacing: '-0.01em' }
-const scanIcon = { width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const splitBtn = { background: '#FFFFFF', color: '#1A1A1A', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer', letterSpacing: '-0.01em' }
-const splitIcon = { width: '32px', height: '32px', borderRadius: '10px', background: '#D8F3DC', display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const payRow = { background: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', width: '100%', transition: 'transform 120ms' }
 const emptyState = { background: '#FFFFFF', borderRadius: '16px', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '8px' }
 const emptyCta = { marginTop: '8px', padding: '10px 18px', borderRadius: '10px', background: '#1C1C1E', color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }

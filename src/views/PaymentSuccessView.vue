@@ -40,11 +40,13 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonPage, IonContent } from '@ionic/vue'
 import { useBillStore } from '@/stores/bills'
+import { useBillSocket } from '@/composables/useBillSocket'
 import AppIcon from '@/components/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useBillStore()
+const { connect, disconnect } = useBillSocket()
 
 const billId = computed(() => {
   const raw = route.query.bill_id
@@ -54,9 +56,7 @@ const billId = computed(() => {
 
 const state = ref<'pending' | 'timeout'>('pending')
 const checking = ref(false)
-let attempts = 0
-const MAX_ATTEMPTS = 8
-const INTERVAL_MS = 2500
+const POLL_INTERVAL_MS = 10000
 let timer: number | null = null
 
 const headline = computed(() => {
@@ -88,15 +88,9 @@ async function tryFind(): Promise<boolean> {
 }
 
 async function poll() {
-  attempts += 1
   const found = await tryFind()
   if (found) return
-  if (attempts >= MAX_ATTEMPTS) {
-    state.value = 'timeout'
-    stopTimer()
-    return
-  }
-  timer = window.setTimeout(poll, INTERVAL_MS)
+  timer = window.setTimeout(poll, POLL_INTERVAL_MS)
 }
 
 function stopTimer() {
@@ -109,10 +103,7 @@ function stopTimer() {
 async function checkAgain() {
   checking.value = true
   try {
-    const found = await tryFind()
-    if (!found) {
-      // Stay on timeout state — user will see no nav happened
-    }
+    await tryFind()
   } finally {
     checking.value = false
   }
@@ -122,17 +113,34 @@ function goHome() {
   router.replace('/tabs/home')
 }
 
-onMounted(() => {
+async function startSocket() {
+  if (!billId.value) return
+  // Need token from payment history to authenticate with the socket
+  await store.loadPayments()
+  const match = store.payments.find((p) => p.billId === billId.value)
+  if (!match) return
+  connect(billId.value, match.billToken, {
+    onPaymentSucceeded() {
+      tryFind()
+    },
+  })
+}
+
+onMounted(async () => {
   if (!billId.value) {
     // Missing bill_id — nothing to verify. Send user home.
     router.replace('/tabs/home')
     return
   }
-  // Kick off first attempt immediately, then poll
+  // Start socket for real-time confirmation + fallback poll
+  await startSocket()
   poll()
 })
 
-onBeforeUnmount(() => stopTimer())
+onBeforeUnmount(() => {
+  stopTimer()
+  disconnect()
+})
 
 const container = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '40px 24px' }
 const iconWrap = { width: '88px', height: '88px', borderRadius: '50%', background: '#D8F3DC', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }

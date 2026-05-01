@@ -6,7 +6,7 @@ export interface BillItem {
 
 // Frontend-friendly status. Mapped from backend (open|paid|completed|expired for bills,
 // pending|succeeded|failed|cancelled for payments).
-export type StatusLabel = 'Completed' | 'Pending' | 'Failed' | 'Expired'
+export type StatusLabel = 'Completed' | 'Active' | 'Pending' | 'Failed' | 'Expired'
 
 // A row in the user's payment history (from GET /api/payments/user)
 export interface PaymentHistoryItem {
@@ -16,6 +16,7 @@ export interface PaymentHistoryItem {
   status: StatusLabel
   rawStatus: 'pending' | 'succeeded' | 'failed' | 'cancelled'
   paidAt: string | null
+  createdAt: string
   billTitle: string
   currency: string
   billToken: string
@@ -33,11 +34,13 @@ export interface BillDetail {
   items: BillItem[]
   status: 'open' | 'paid' | 'completed' | 'expired'
   paidAmount: number
+  pendingAmount: number
   remaining: number
   createdAt: string
   expiresAt: string
   token: string
   merchantName?: string
+  contributors: BillContributor[]
 }
 
 export interface AuthUser {
@@ -52,10 +55,19 @@ export interface Receipt {
   merchant: string
   date: string
   txn: string
+  currency: string
+  items: BillItem[]
+  status: 'succeeded' | 'failed'
+  contributors: BillContributor[]
 }
 
 export interface UserPreferences {
   notifications: boolean
   biometrics: boolean
   language: string
+}
+
+export interface BillContributor {
+  name: string
+  amount: number
 }

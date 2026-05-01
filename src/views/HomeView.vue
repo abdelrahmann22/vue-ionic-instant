@@ -33,7 +33,7 @@
               </template>
               <template v-else>
                 <div style="font-size:40px; font-weight:700; letter-spacing:-0.03em; line-height:1; color:#1A1A1A;">
-                  ${{ store.totalContributed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                  {{ currencySymbol(store.payments[0]?.currency ?? 'gbp') }}{{ store.totalContributed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                 </div>
                 <div style="font-size:12px; color:#2D6A4F; font-weight:600; margin-top:8px; display:flex; align-items:center; gap:4px;">
                   <AppIcon name="arrow-up-right" :size="12" color="#2D6A4F" :stroke-width="2.5" />
@@ -82,7 +82,7 @@
             <div style="flex:1; min-width:0;">
               <div style="font-size:14px; font-weight:600; color:#1A1A1A; letter-spacing:-0.01em;">{{ p.billTitle || `Bill #${p.billId}` }}</div>
               <div style="font-size:12px; color:#9CA3AF; margin-top:2px; display:flex; align-items:center; gap:6px;">
-                <span>{{ formatTime(p.paidAt) }}</span>
+                <span>{{ formatTime(p.paidAt, p.createdAt) }}</span>
                 <span v-if="p.contributorsCount > 0" style="width:3px;height:3px;border-radius:50%;background:#9CA3AF;display:inline-block;" />
                 <span v-if="p.contributorsCount > 0">{{ p.contributorsCount }} {{ p.contributorsCount === 1 ? 'person' : 'people' }}</span>
               </div>
@@ -160,8 +160,8 @@ function formatAmount(amount: number, currency: string) {
   return `${currencySymbol(currency)}${amount.toFixed(2)}`
 }
 
-function formatTime(iso: string | null): string {
-  if (!iso) return 'Pending'
+function formatTime(paidAt: string | null, createdAt: string): string {
+  const iso = paidAt ?? createdAt
   const date = new Date(iso)
   const diff = Date.now() - date.getTime()
   const min = Math.floor(diff / 60000)
@@ -176,6 +176,30 @@ function formatTime(iso: string | null): string {
 }
 
 async function openPayment(p: PaymentHistoryItem) {
+  if (p.rawStatus === 'failed' || p.rawStatus === 'cancelled') {
+    store.buildReceipt(p)
+    router.push('/receipt')
+    return
+  }
+
+  if (p.rawStatus === 'succeeded') {
+    // Build basic receipt from payment data (items=[], contributors=[])
+    // then navigate immediately while loading full data in background
+    store.buildReceipt(p)
+    store.receiptLoading = true
+    router.push('/receipt')
+    store.loadBillByToken(p.billId, p.billToken, p.merchantName)
+      .then(() => {
+        store.buildReceipt(p)
+        store.receiptLoading = false
+      })
+      .catch(() => {
+        store.receiptLoading = false
+      })
+    return
+  }
+
+  // Pending — go to bill view
   try {
     await store.loadBillByToken(p.billId, p.billToken, p.merchantName)
     router.push(`/bill/${p.billId}`)

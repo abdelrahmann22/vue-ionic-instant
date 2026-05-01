@@ -23,7 +23,7 @@
 
         <!-- Stat cards -->
         <div style="padding:12px 16px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <StatCard tint="#F3E8FF" label="Total contributed" :value="`$${billStore.totalContributed.toFixed(2)}`" :sub="`${billStore.payments.length} payments`" />
+          <StatCard tint="#F3E8FF" label="Total contributed" :value="`${currencySymbol(billStore.payments[0]?.currency ?? 'gbp')}${billStore.totalContributed.toFixed(2)}`" :sub="`${billStore.payments.length} payments`" />
           <StatCard tint="#D8F3DC" label="Bills paid" :value="String(billStore.billsPaidCount)" :sub="`${billStore.activeBillsCount} pending`" />
         </div>
 
@@ -78,6 +78,7 @@ import { useRouter } from 'vue-router'
 import { IonPage, IonContent, alertController, toastController } from '@ionic/vue'
 import { useBillStore } from '@/stores/bills'
 import { useAuthStore } from '@/stores/auth'
+import { currencySymbol } from '@/services/billService'
 import AppIcon from '@/components/AppIcon.vue'
 import AppAvatar from '@/components/AppAvatar.vue'
 import AppToggle from '@/components/AppToggle.vue'

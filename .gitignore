@@ -42,3 +42,5 @@ ios/DerivedData/
 *.local
 .cache/
 coverage/
+
+docs/

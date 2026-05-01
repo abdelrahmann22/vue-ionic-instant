@@ -9,6 +9,7 @@ const props = defineProps<{ status: string }>()
 
 const MAP: Record<string, { bg: string; fg: string }> = {
   Completed: { bg: '#D1FAE5', fg: '#166534' },
+  Active:    { bg: '#D1FAE5', fg: '#166534' },
   Pending:   { bg: '#FEF3C7', fg: '#D97706' },
   Failed:    { bg: '#FEE2E2', fg: '#DC2626' },
   Expired:   { bg: '#F3F4F6', fg: '#6B7280' },

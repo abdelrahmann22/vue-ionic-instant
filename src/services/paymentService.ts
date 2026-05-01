@@ -7,6 +7,7 @@ interface RawUserPayment {
   amount: string | number
   status: 'pending' | 'succeeded' | 'failed' | 'cancelled'
   paid_at: string | null
+  created_at: string
   bill_title: string
   currency: string
   bill_token: string
@@ -29,13 +30,17 @@ export function mapPaymentStatus(s: RawUserPayment['status']): StatusLabel {
 }
 
 export const paymentService = {
-  async initiate(billId: number, token: string, amount: number): Promise<{ checkoutUrl: string }> {
-    const { data } = await api.post<{ checkout_url: string }>('/api/payments/initiate', {
+  async initiate(billId: number, token: string, amount: number): Promise<{ checkoutUrl: string; paymentId: number }> {
+    const { data } = await api.post<{ checkout_url: string; payment_id: number }>('/api/payments/initiate', {
       bill_id: billId,
       token,
       amount,
     })
-    return { checkoutUrl: data.checkout_url }
+    return { checkoutUrl: data.checkout_url, paymentId: data.payment_id }
+  },
+
+  async cancelPayment(paymentId: number): Promise<void> {
+    await api.post(`/api/payments/${paymentId}/cancel`)
   },
 
   async getUserPayments(): Promise<PaymentHistoryItem[]> {
@@ -48,6 +53,7 @@ export const paymentService = {
         status: mapPaymentStatus(p.status),
         rawStatus: p.status,
         paidAt: p.paid_at,
+        createdAt: p.created_at,
         billTitle: p.bill_title,
         currency: p.currency,
         billToken: p.bill_token,

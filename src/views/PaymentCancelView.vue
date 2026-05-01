@@ -23,18 +23,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonPage, IonContent } from '@ionic/vue'
+import { useBillStore } from '@/stores/bills'
 import AppIcon from '@/components/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
+const store = useBillStore()
 
 const billId = computed(() => {
   const raw = route.query.bill_id
   const n = parseInt(String(raw ?? ''), 10)
   return Number.isFinite(n) ? n : null
+})
+
+onMounted(async () => {
+  if (!billId.value) return
+  // Ensure any lingering pending payment for this bill is cancelled server-side
+  await store.loadPayments()
+  const pending = store.payments.find(
+    (p) => p.billId === billId.value && p.rawStatus === 'pending'
+  )
+  if (pending) {
+    store.pendingPaymentId = pending.paymentId
+    try { await store.cancelPendingPayment() } catch { /* best-effort */ }
+  }
 })
 
 function tryAgain() {

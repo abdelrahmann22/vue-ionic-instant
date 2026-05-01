@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { BillDetail, BillItem } from '@/types'
+import type { BillDetail, BillItem, BillContributor } from '@/types'
 
 interface RawBill {
   id: number
@@ -10,6 +10,7 @@ interface RawBill {
   items: string | BillItem[]
   status: 'open' | 'paid' | 'completed' | 'expired'
   paid_amount: string | number
+  pending_amount: string | number
   remaining: string | number
   created_at: string
   expires_at: string
@@ -43,10 +44,26 @@ export const billService = {
       items: parseItems(data.items),
       status: data.status,
       paidAmount: num(data.paid_amount),
+      pendingAmount: num(data.pending_amount),
       remaining: num(data.remaining),
       createdAt: data.created_at,
       expiresAt: data.expires_at,
       token,
+      contributors: [],
+    }
+  },
+
+  async getContributors(billId: number): Promise<BillContributor[]> {
+    try {
+      const { data } = await api.get<{ id: number; amount: string | number; user_name: string }[]>(`/api/payments/${billId}`)
+      return data.map((p) => ({
+        name: p.user_name || 'Anonymous',
+        amount: num(p.amount),
+      }))
+    } catch (err: any) {
+      // 401/403/404 means no access or no payments yet — return empty list
+      if ([401, 403, 404].includes(err?.response?.status)) return []
+      throw err
     }
   },
 }
@@ -81,8 +98,8 @@ export function currencySymbol(code: string): string {
   return '$'
 }
 
-export function mapBillStatus(status: BillDetail['status']): 'Completed' | 'Pending' | 'Expired' {
+export function mapBillStatus(status: BillDetail['status']): 'Completed' | 'Active' | 'Expired' {
   if (status === 'paid' || status === 'completed') return 'Completed'
   if (status === 'expired') return 'Expired'
-  return 'Pending'
+  return 'Active'
 }

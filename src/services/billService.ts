@@ -73,10 +73,10 @@ export function parseBillFromQR(text: string): { billId: number; token: string }
   // or plain "5:abc12345" / "5/abc12345" formats for manual entry.
   if (!text) return null
   const trimmed = text.trim()
-  // Try URL with /bills/<id>?token=...
+  // Try URL with /bill/<id>?token=... or /bills/<id>?token=...
   try {
     const url = new URL(trimmed)
-    const m = url.pathname.match(/bills\/(\d+)/)
+    const m = url.pathname.match(/bills?\/(\d+)/)
     const token = url.searchParams.get('token')
     if (m && token) return { billId: parseInt(m[1], 10), token }
   } catch {

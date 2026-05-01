@@ -40,11 +40,14 @@ import { IonPage, IonContent, toastController } from '@ionic/vue'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { useBillStore } from '@/stores/bills'
+import { useBillSocket } from '@/composables/useBillSocket'
+import type { PaymentCancelledData } from '@/composables/useBillSocket'
 import AppIcon from '@/components/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useBillStore()
+const { connect, disconnect } = useBillSocket()
 
 const amountPaid = parseFloat(String(route.query.amount ?? '0'))
 
@@ -62,9 +65,31 @@ const subText = computed(() => {
   return `Complete your payment of $${amountPaid.toFixed(2)} on the Stripe page that just opened. We'll detect it automatically.`
 })
 
+function startSocket() {
+  if (!store.activeBill) return
+  connect(store.activeBill.id, store.activeBill.token, {
+    onPaymentSucceeded() {
+      if (!done.value) onSuccess()
+    },
+    async onPaymentCancelled(data: PaymentCancelledData) {
+      if (done.value) return
+      // Stripe session expired or another frontend cancelled the payment
+      stopPolling()
+      const t = await toastController.create({
+        message: 'Payment session expired. You can try again.',
+        duration: 3000, position: 'bottom', color: 'dark',
+      })
+      await t.present()
+      const billId = store.activeBill?.id
+      router.replace(`/payment/cancel?bill_id=${billId ?? ''}`)
+    },
+  })
+}
+
 function startPolling() {
   stopPolling()
-  pollHandle = window.setInterval(checkStatus, 3000)
+  // Fallback poll at 10s interval (socket handles real-time)
+  pollHandle = window.setInterval(checkStatus, 10000)
   checkStatus()
 }
 
@@ -116,6 +141,7 @@ async function checkNow() {
 async function onSuccess() {
   done.value = true
   stopPolling()
+  store.pendingPaymentId = null
   const billId = store.activeBill?.id
   const succeeded = store.payments.find(
     (p) => p.billId === billId && p.rawStatus === 'succeeded'
@@ -132,16 +158,26 @@ async function cancel() {
   if (Capacitor.isNativePlatform()) {
     try { await Browser.close() } catch { /* ignore */ }
   }
-  router.replace('/tabs/home')
+  const billId = store.activeBill?.id
+  try {
+    await store.cancelPendingPayment()
+  } catch {
+    // best-effort; user may have already closed the tab
+  }
+  router.replace(`/payment/cancel?bill_id=${billId ?? ''}`)
 }
 
 onMounted(() => {
   // Stripe was opened by PaymentSheet right after the user tapped "Pay".
-  // We just need to poll for webhook confirmation.
+  // Socket provides real-time confirmation; fallback poll every 10s.
+  startSocket()
   startPolling()
 })
 
-onBeforeUnmount(() => stopPolling())
+onBeforeUnmount(() => {
+  stopPolling()
+  disconnect()
+})
 
 const container = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '40px 24px' }
 const iconWrap = { width: '88px', height: '88px', borderRadius: '50%', background: '#D8F3DC', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }
